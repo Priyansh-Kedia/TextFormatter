@@ -42,7 +42,9 @@ class CharacterWatcher constructor(private val listener: OnSequenceChanged): Tex
             if (index == sequence?.length)
                 index -= 1
 
-            listener.characterAdded(index, sequence?.get(index), sequence)
+            val position = if (index + 1 == sequence?.length) POSITION.END else if (index == 0) POSITION.START else POSITION.BETWEEN
+
+            listener.characterAdded(index, sequence?.get(index), sequence, position)
         }
         if (previousLength > (sequence?.length ?: 0)) {
             /**
@@ -50,7 +52,9 @@ class CharacterWatcher constructor(private val listener: OnSequenceChanged): Tex
              * The variable [backspaceCharacter] specifies the character just deleted
              * The variable [backspaceIndex] specified index of deleted character
              */
-            listener.characterDeleted(backspaceIndex, backspaceCharacter, sequence)
+            val position = if (backspaceIndex == sequence?.length) POSITION.END else if (backspaceIndex == 0) POSITION.START else POSITION.BETWEEN
+
+            listener.characterDeleted(backspaceIndex, backspaceCharacter, sequence, position)
         }
     }
 
@@ -59,7 +63,7 @@ class CharacterWatcher constructor(private val listener: OnSequenceChanged): Tex
     }
 
     interface OnSequenceChanged {
-        fun characterAdded(index: Int, addedCharacter: Char?, sequence: CharSequence?)
-        fun characterDeleted(index: Int, deletedCharacter: Char?, sequence: CharSequence?)
+        fun characterAdded(index: Int, addedCharacter: Char?, sequence: CharSequence?, addedAt: POSITION)
+        fun characterDeleted(index: Int, deletedCharacter: Char?, sequence: CharSequence?, deletedFrom: POSITION)
     }
 }

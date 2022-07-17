@@ -29,7 +29,8 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
         override fun characterAdded(
             index: Int,
             addedCharacter: Char?,
-            sequence: CharSequence?
+            sequence: CharSequence?,
+            addedAt: POSITION
         ) {
             addedCharacter?.let {
                 if (it in characterFormatMap.keys) {
@@ -100,7 +101,8 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
         override fun characterDeleted(
             index: Int,
             deletedCharacter: Char?,
-            sequence: CharSequence?
+            sequence: CharSequence?,
+            deletedFrom: POSITION
         ) {
             deletedCharacter?.let {
                 if (it in characterFormatMap.keys) {
