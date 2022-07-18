@@ -24,7 +24,7 @@ fun Triple<Int, Int, Any>.isComplete(): Boolean {
 }
 
 infix fun Int.`in`(triple: Triple<Int, Int, Any>): Boolean {
-    return triple.first < this && triple.second > this
+    return triple.first <= this && triple.second >= this
 }
 
 fun findNearestIncompleteTriple(currentIndex: Int, characterMapping: MutableList<CharacterPositionMap>): CharacterPositionMap? {
