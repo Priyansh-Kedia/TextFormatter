@@ -2,7 +2,14 @@ package com.kedia.textstyling
 
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Log
+import android.widget.EditText
+
+/**
+ * [CharacterWatcher] class is used to listen to text changes inside [EditText]
+ * [OnSequenceChanged] consists of two functions, characterAdded and
+ * characterDeleted, which give information about the added and deleted characters
+ * respectively.
+ */
 
 class CharacterWatcher constructor(private val listener: OnSequenceChanged): TextWatcher {
 
