@@ -5,9 +5,14 @@ import android.text.style.CharacterStyle
 import android.widget.EditText
 import androidx.core.text.getSpans
 
-class TextFormatter {
-
-}
+/**
+ * [textFormatter] can be used as an extension function, for EditText
+ * You can specify characters to a particular text format that needs to
+ * be added. For example, if you wish to specify that the text between
+ * two asterisks (*) should be bold, and text between underscores (_) should be
+ * italicized, then you need to pass a list of TextFormat [TextFormat].
+ * The function will automatically take care of
+ */
 
 fun EditText.textFormatter(textFormats: List<TextFormat>) {
 
@@ -22,8 +27,8 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
         it.character to it.textStyle
     }
 
-    val charactersTripleList: MutableMap<Char, MutableList<Triple<Int, Int, Boolean>>> = mutableMapOf()
-    val positionTripleList: MutableMap<Char, Triple<Int, Int, Boolean>> = mutableMapOf()
+    val addedSpanList: MutableMap<Char, MutableList<Triple<Int, Int, Boolean>>> = mutableMapOf()
+    val ongoingSpanList: MutableMap<Char, Triple<Int, Int, Boolean>> = mutableMapOf()
 
     this.addTextChangedListener(CharacterWatcher(object : CharacterWatcher.OnSequenceChanged {
         override fun characterAdded(
@@ -40,12 +45,12 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
                      * of pairs too
                      */
                     var triple = emptyTriple
-                    if ((positionTripleList.get(it) ?: emptyTriple) == emptyTriple) {
-                        if (charactersTripleList.containsKey(it)) {
-                            triple = charactersTripleList.get(it)?.last() ?: emptyTriple
+                    if ((ongoingSpanList.get(it) ?: emptyTriple) == emptyTriple) {
+                        if (addedSpanList.containsKey(it)) {
+                            triple = addedSpanList.get(it)?.last() ?: emptyTriple
                         }
                     } else {
-                        triple = positionTripleList.get(it) ?: emptyTriple
+                        triple = ongoingSpanList.get(it) ?: emptyTriple
                     }
 
                     if (triple.isComplete()) {
@@ -58,21 +63,21 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
                         triple = Triple(index, -1, false)
                     }
                     else if (triple.second == -1) {
-                        charactersTripleList?.get(it)?.remove(triple) // change it so it ignore boolean
-                        if (charactersTripleList.get(it)?.isEmpty() == true)
-                            charactersTripleList.remove(it)
+                        addedSpanList?.get(it)?.remove(triple) // change it so it ignore boolean
+                        if (addedSpanList.get(it)?.isEmpty() == true)
+                            addedSpanList.remove(it)
                         triple = Triple(triple.first, index, false)
-                        if (charactersTripleList.containsKey(it).not())
-                            charactersTripleList[it] = mutableListOf()
+                        if (addedSpanList.containsKey(it).not())
+                            addedSpanList[it] = mutableListOf()
 
-                        charactersTripleList[it]?.add(triple)
+                        addedSpanList[it]?.add(triple)
                         triple = emptyTriple
                     }
-                    positionTripleList[it] = triple
+                    ongoingSpanList[it] = triple
 
-                    if (charactersTripleList.isNotEmpty()) {
-                        for (character in charactersTripleList.keys) {
-                            val list = charactersTripleList.get(character) ?: listOf()
+                    if (addedSpanList.isNotEmpty()) {
+                        for (character in addedSpanList.keys) {
+                            val list = addedSpanList.get(character) ?: listOf()
                             val style = characterFormatMap.get(character)
                             val span = getStyleSpan(style)
                             for (addedPair in list) {
@@ -86,8 +91,8 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
                                             addedPair.second,
                                             Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
                                         )
-                                        charactersTripleList.get(character)?.remove(addedPair)
-                                        charactersTripleList.get(character)
+                                        addedSpanList.get(character)?.remove(addedPair)
+                                        addedSpanList.get(character)
                                             ?.add(Triple(addedPair.first, addedPair.second, true))
                                     }
                                 }
@@ -106,26 +111,26 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
         ) {
             deletedCharacter?.let {
                 if (it in characterFormatMap.keys) {
-                    var triple = positionTripleList.get(it) ?: emptyTriple
+                    var triple = ongoingSpanList.get(it) ?: emptyTriple
 
                     if (triple == emptyTriple)
-                        triple = if (charactersTripleList.containsKey(it)) charactersTripleList.get(it)?.last() ?: emptyTriple else emptyTriple
+                        triple = if (addedSpanList.containsKey(it)) addedSpanList.get(it)?.last() ?: emptyTriple else emptyTriple
 
-                    charactersTripleList.get(it)?.remove(triple)
-                    if (charactersTripleList.get(it)?.isEmpty() == true)
-                        charactersTripleList.remove(it)
+                    addedSpanList.get(it)?.remove(triple)
+                    if (addedSpanList.get(it)?.isEmpty() == true)
+                        addedSpanList.remove(it)
                     if (triple.second != -1) {
                         triple = Triple(triple.first, -1, false)
-                        if (charactersTripleList.containsKey(it).not())
-                            charactersTripleList[it] = mutableListOf()
-                        charactersTripleList?.get(it)?.add(triple)
+                        if (addedSpanList.containsKey(it).not())
+                            addedSpanList[it] = mutableListOf()
+                        addedSpanList?.get(it)?.add(triple)
                     } else {
                         triple = emptyTriple
                     }
 
-                    if (charactersTripleList.isNotEmpty()) {
-                        for (character in charactersTripleList.keys) {
-                            val list = charactersTripleList.get(character) ?: listOf()
+                    if (addedSpanList.isNotEmpty()) {
+                        for (character in addedSpanList.keys) {
+                            val list = addedSpanList.get(character) ?: listOf()
                             val style = characterFormatMap.get(character)
                             val span = getStyleSpan(style)
                             for (addedPair in list) {
