@@ -55,6 +55,11 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
         addedSpanList[char]?.add(triple)
     }
 
+    fun getCurrentCharacterInfo(char: Char, index: Int) {
+//        val currentSpan = addedSpanList[char].filter {  }
+        this.text
+    }
+
     fun getNextCharacterInfo(char: Char, index: Int): CharacterPositionMap? {
         val nextSpans = addedSpanList[char]?.sortedBy { it.first }?.filter { it.first > index }?.toMutableList() ?: mutableListOf()
         var nextSpan = emptyTriple
@@ -66,7 +71,6 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
         if (ongoingSpanList.containsKey(char)) {
             nextSpan = ongoingSpanList.get(char) ?: emptyTriple
         }
-        logE("in this $nextSpan $nextSpans $ongoingSpanList")
         if (nextSpans.isNotEmpty()) {
             nextSpan = if (nextSpans.first().first < nextSpan.first) nextSpans.first() else nextSpan
         }
@@ -177,6 +181,7 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
                     var triple = ongoingSpanList.get(it) ?: emptyTriple
 
                     if (deletedFrom == POSITION.BETWEEN) {
+                        val currentSpan = getCurrentCharacterInfo(it, index)
                         val nextInfo = getNextCharacterInfo(it, index)
                         val previousInfo = getPreviousCharacterInfo(it, index)
                         logE("called here $nextInfo $previousInfo ${addedSpanList[it]} ${ongoingSpanList.get(it)}")
