@@ -5,6 +5,8 @@ import android.text.style.CharacterStyle
 import android.widget.EditText
 import androidx.core.text.getSpans
 
+typealias CharacterPositionMap = Triple<Int, Int, Boolean>
+
 /**
  * [textFormatter] can be used as an extension function, for EditText
  * You can specify characters to a particular text format that needs to
@@ -16,7 +18,7 @@ import androidx.core.text.getSpans
 
 fun EditText.textFormatter(textFormats: List<TextFormat>) {
 
-    val emptyTriple = Triple(-1, -1, false)
+    val emptyTriple = CharacterPositionMap(-1, -1, false)
 
     if (textFormats.isEmpty()) {
         logE("You should pass at least one text format")
@@ -27,8 +29,64 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
         it.character to it.textStyle
     }
 
-    val addedSpanList: MutableMap<Char, MutableList<Triple<Int, Int, Boolean>>> = mutableMapOf()
-    val ongoingSpanList: MutableMap<Char, Triple<Int, Int, Boolean>> = mutableMapOf()
+    val addedSpanList: MutableMap<Char, MutableList<CharacterPositionMap>> = mutableMapOf()
+    val ongoingSpanList: MutableMap<Char, CharacterPositionMap> = mutableMapOf()
+
+    fun updateOngoingSpan(triple: CharacterPositionMap, char: Char, index: Int) {
+        var onGoingTriple = ongoingSpanList.get(char) ?: emptyTriple
+        if (onGoingTriple.first == -1)
+            onGoingTriple = CharacterPositionMap(triple.second, -1, false)
+        else if (onGoingTriple.second == -1)
+            onGoingTriple = CharacterPositionMap(onGoingTriple.first, triple.second, false)
+        ongoingSpanList[char] = onGoingTriple
+    }
+
+    fun removeCurrentSpan(index: Int, lastIndex: Int) {
+        val addedSpan = this.text.getSpans<CharacterStyle>(index + 1, lastIndex)
+        if (addedSpan.isNotEmpty()) {
+            this@textFormatter.text.removeSpan(addedSpan.first())
+        }
+    }
+
+    fun addToSpanList(triple: CharacterPositionMap, char: Char) {
+        if (addedSpanList.containsKey(char).not())
+            addedSpanList[char] = mutableListOf()
+
+        addedSpanList[char]?.add(triple)
+    }
+
+    fun getNextCharacterInfo(char: Char, index: Int): CharacterPositionMap? {
+        val nextSpans = addedSpanList[char]?.sortedBy { it.first }?.filter { it.first > index }?.toMutableList() ?: mutableListOf()
+        var nextSpan = emptyTriple
+//        if (nextSpans.isEmpty()) {
+//            if (ongoingSpanList.containsKey(char)) {
+//                nextSpans.add(ongoingSpanList.get(char) ?: emptyTriple)
+//            }
+//        }
+        if (ongoingSpanList.containsKey(char)) {
+            nextSpan = ongoingSpanList.get(char) ?: emptyTriple
+        }
+        logE("in this $nextSpan $nextSpans $ongoingSpanList")
+        if (nextSpans.isNotEmpty()) {
+            nextSpan = if (nextSpans.first().first < nextSpan.first) nextSpans.first() else nextSpan
+        }
+
+        return nextSpan
+    }
+
+    fun getPreviousCharacterInfo(char: Char, index: Int): CharacterPositionMap? {
+        val prevSpans = addedSpanList[char]?.sortedBy { it.first }?.filter { it.second < index }?.toMutableList() ?: mutableListOf()
+        if (prevSpans.isEmpty()) {
+            val prevIndex = this.text.toString().indexOf(char)
+            prevSpans.add(CharacterPositionMap(-1, prevIndex, false))
+        }
+        if (prevSpans.isEmpty()) {
+            if (ongoingSpanList.containsKey(char)) {
+                prevSpans.add(ongoingSpanList.get(char) ?: emptyTriple)
+            }
+        }
+        return if (prevSpans.isEmpty()) null else prevSpans.last()
+    }
 
     this.addTextChangedListener(CharacterWatcher(object : CharacterWatcher.OnSequenceChanged {
         override fun characterAdded(
@@ -45,12 +103,23 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
                      * of pairs too
                      */
                     var triple = emptyTriple
-                    if ((ongoingSpanList.get(it) ?: emptyTriple) == emptyTriple) {
-                        if (addedSpanList.containsKey(it)) {
-                            triple = addedSpanList.get(it)?.last() ?: emptyTriple
-                        }
+                    if (addedAt == POSITION.BETWEEN) {
+                        triple = findNearestIncompleteTriple(index, addedSpanList.get(it) ?: mutableListOf()) ?: emptyTriple
+                        // Update ongoing span
+                        // Remove the current span
+                        updateOngoingSpan(triple, it, index)
+                        removeCurrentSpan(index, triple.second)
+                        addedSpanList.get(it)?.remove(triple)
+                        triple = CharacterPositionMap(triple.first, index, false)
+                        addToSpanList(triple, it)
                     } else {
-                        triple = ongoingSpanList.get(it) ?: emptyTriple
+                        if ((ongoingSpanList[it] ?: emptyTriple) == emptyTriple) {
+                            if (addedSpanList.containsKey(it)) {
+                                triple = addedSpanList[it]?.last() ?: emptyTriple
+                            }
+                        } else {
+                            triple = ongoingSpanList[it] ?: emptyTriple
+                        }
                     }
 
                     if (triple.isComplete()) {
@@ -60,20 +129,20 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
                     }
 
                     if (triple.first == -1) {
-                        triple = Triple(index, -1, false)
+                        triple = CharacterPositionMap(index, -1, false)
                     }
                     else if (triple.second == -1) {
                         addedSpanList?.get(it)?.remove(triple) // change it so it ignore boolean
                         if (addedSpanList.get(it)?.isEmpty() == true)
                             addedSpanList.remove(it)
-                        triple = Triple(triple.first, index, false)
-                        if (addedSpanList.containsKey(it).not())
-                            addedSpanList[it] = mutableListOf()
-
-                        addedSpanList[it]?.add(triple)
+                        triple = CharacterPositionMap(triple.first, index, false)
+                        addToSpanList(triple, it)
                         triple = emptyTriple
                     }
-                    ongoingSpanList[it] = triple
+
+                    if (triple.isComplete().not()) {
+                        ongoingSpanList[it] = triple
+                    }
 
                     if (addedSpanList.isNotEmpty()) {
                         for (character in addedSpanList.keys) {
@@ -85,15 +154,9 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
                                     return
                                 span?.let {
                                     if (addedPair.third.not()) {
-                                        this@textFormatter.text.setSpan(
-                                            it,
-                                            addedPair.first + 1,
-                                            addedPair.second,
-                                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                                        )
+                                        this@textFormatter.text.setSpan(it, addedPair.first + 1, addedPair.second, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
                                         addedSpanList.get(character)?.remove(addedPair)
-                                        addedSpanList.get(character)
-                                            ?.add(Triple(addedPair.first, addedPair.second, true))
+                                        addedSpanList.get(character)?.add(CharacterPositionMap(addedPair.first, addedPair.second, true))
                                     }
                                 }
                             }
@@ -113,17 +176,21 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
                 if (it in characterFormatMap.keys) {
                     var triple = ongoingSpanList.get(it) ?: emptyTriple
 
-                    if (triple == emptyTriple)
-                        triple = if (addedSpanList.containsKey(it)) addedSpanList.get(it)?.last() ?: emptyTriple else emptyTriple
+                    if (deletedFrom == POSITION.BETWEEN) {
+                        val nextInfo = getNextCharacterInfo(it, index)
+                        val previousInfo = getPreviousCharacterInfo(it, index)
+                        logE("called here $nextInfo $previousInfo ${addedSpanList[it]} ${ongoingSpanList.get(it)}")
+                    } else {
+                        if (triple == emptyTriple)
+                            triple = if (addedSpanList.containsKey(it)) addedSpanList.get(it)?.last() ?: emptyTriple else emptyTriple
+                    }
 
                     addedSpanList.get(it)?.remove(triple)
                     if (addedSpanList.get(it)?.isEmpty() == true)
                         addedSpanList.remove(it)
                     if (triple.second != -1) {
-                        triple = Triple(triple.first, -1, false)
-                        if (addedSpanList.containsKey(it).not())
-                            addedSpanList[it] = mutableListOf()
-                        addedSpanList?.get(it)?.add(triple)
+                        triple = CharacterPositionMap(triple.first, -1, false)
+                        addToSpanList(triple, it)
                     } else {
                         triple = emptyTriple
                     }
