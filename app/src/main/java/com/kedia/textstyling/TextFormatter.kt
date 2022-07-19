@@ -190,9 +190,6 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
                         addedSpanList.remove(it)
                     if (triple.second != -1) {
                         triple = CharacterPositionMap(triple.first, -1, false)
-//                        if (addedSpanList.containsKey(it).not())
-//                            addedSpanList[it] = mutableListOf()
-//                        addedSpanList?.get(it)?.add(triple)
                         addToSpanList(triple, it)
                     } else {
                         triple = emptyTriple
