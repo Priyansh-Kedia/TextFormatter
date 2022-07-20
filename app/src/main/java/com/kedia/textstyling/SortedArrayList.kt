@@ -33,17 +33,3 @@ class SortedArrayList<T>(
         else -> findEquals(index + step, element, step)
     }
 }
-
-fun <T : Comparable<T>> sortedMutableListOf(vararg elements: T): SortedMutableList<T> =
-    SortedArrayList(*elements, comp = compareBy { it })
-
-fun <T> sortedMutableListOf(comparator: Comparator<T>, vararg elements: T): SortedMutableList<T> =
-    SortedArrayList(elements = elements, comp = comparator)
-
-interface SortedMutableList<T> : Iterable<T> {
-    val size: Int
-    fun add(element: T)
-    fun remove(element: T)
-    operator fun get(index: Int): T
-    operator fun contains(element: T): Boolean
-}

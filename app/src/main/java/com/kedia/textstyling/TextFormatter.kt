@@ -32,6 +32,8 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
     val addedSpanList: MutableMap<Char, MutableList<CharacterPositionMap>> = mutableMapOf()
     val ongoingSpanList: MutableMap<Char, CharacterPositionMap> = mutableMapOf()
 
+    val addedSpanSortedList: MutableMap<Char, SortedArrayList<Pair<Int, Boolean>>> = mutableMapOf()
+
     fun updateOngoingSpan(triple: CharacterPositionMap, char: Char, index: Int) {
         var onGoingTriple = ongoingSpanList.get(char) ?: emptyTriple
         if (onGoingTriple.first == -1)
@@ -53,6 +55,15 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
             addedSpanList[char] = mutableListOf()
 
         addedSpanList[char]?.add(triple)
+    }
+
+    fun addToSortedList(char: Char, index: Int, addedToSpan: Boolean = false) {
+        addedSpanSortedList.get(char).performOnList({
+            addedSpanSortedList[char] = SortedArrayList(comp = PositionComparator)
+            addedSpanSortedList[char]?.add(Pair(index, addedToSpan))
+        }, {
+            it.add(Pair(index, addedToSpan))
+        })
     }
 
     fun getCurrentCharacterInfo(char: Char, index: Int) {
@@ -102,70 +113,80 @@ fun EditText.textFormatter(textFormats: List<TextFormat>) {
             addedCharacter?.let {
                 if (it in characterFormatMap.keys) {
 
+                    addToSortedList(it, index)
+
+                    if (addedAt == POSITION.BETWEEN) {
+
+                    } else {
+
+                    }
+
+//                    val indexList = addedSpanSortedList.get(it) ?: SortedArrayList()
+
                     /**
                      * If pair = Pair(-1,-1), then check for the pair in the list
                      * of pairs too
                      */
-                    var triple = emptyTriple
-                    if (addedAt == POSITION.BETWEEN) {
-                        triple = findNearestIncompleteTriple(index, addedSpanList.get(it) ?: mutableListOf()) ?: emptyTriple
-                        // Update ongoing span
-                        // Remove the current span
-                        updateOngoingSpan(triple, it, index)
-                        removeCurrentSpan(index, triple.second)
-                        addedSpanList.get(it)?.remove(triple)
-                        triple = CharacterPositionMap(triple.first, index, false)
-                        addToSpanList(triple, it)
-                    } else {
-                        if ((ongoingSpanList[it] ?: emptyTriple) == emptyTriple) {
-                            if (addedSpanList.containsKey(it)) {
-                                triple = addedSpanList[it]?.last() ?: emptyTriple
-                            }
-                        } else {
-                            triple = ongoingSpanList[it] ?: emptyTriple
-                        }
-                    }
-
-                    if (triple.isComplete()) {
-                        if (!(index `in` triple)) {
-                            triple = emptyTriple
-                        }
-                    }
-
-                    if (triple.first == -1) {
-                        triple = CharacterPositionMap(index, -1, false)
-                    }
-                    else if (triple.second == -1) {
-                        addedSpanList?.get(it)?.remove(triple) // change it so it ignore boolean
-                        if (addedSpanList.get(it)?.isEmpty() == true)
-                            addedSpanList.remove(it)
-                        triple = CharacterPositionMap(triple.first, index, false)
-                        addToSpanList(triple, it)
-                        triple = emptyTriple
-                    }
-
-                    if (triple.isComplete().not()) {
-                        ongoingSpanList[it] = triple
-                    }
-
-                    if (addedSpanList.isNotEmpty()) {
-                        for (character in addedSpanList.keys) {
-                            val list = addedSpanList.get(character) ?: listOf()
-                            val style = characterFormatMap.get(character)
-                            val span = getStyleSpan(style)
-                            for (addedPair in list) {
-                                if (addedPair.first == -1 || addedPair.second == -1)
-                                    return
-                                span?.let {
-                                    if (addedPair.third.not()) {
-                                        this@textFormatter.text.setSpan(it, addedPair.first + 1, addedPair.second, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-                                        addedSpanList.get(character)?.remove(addedPair)
-                                        addedSpanList.get(character)?.add(CharacterPositionMap(addedPair.first, addedPair.second, true))
-                                    }
-                                }
-                            }
-                        }
-                    }
+//                    var triple = emptyTriple
+//                    if (addedAt == POSITION.BETWEEN) {
+//                        triple = findNearestIncompleteTriple(index, addedSpanList.get(it) ?: mutableListOf()) ?: emptyTriple
+//                        // Update ongoing span
+//                        // Remove the current span
+//                        updateOngoingSpan(triple, it, index)
+//                        removeCurrentSpan(index, triple.second)
+//                        addedSpanList.get(it)?.remove(triple)
+//                        triple = CharacterPositionMap(triple.first, index, false)
+//                        addToSpanList(triple, it)
+//                    } else {
+//                        if ((ongoingSpanList[it] ?: emptyTriple) == emptyTriple) {
+//                            if (addedSpanList.containsKey(it)) {
+//                                triple = addedSpanList[it]?.last() ?: emptyTriple
+//                            }
+//                        } else {
+//                            triple = ongoingSpanList[it] ?: emptyTriple
+//                        }
+//                    }
+//
+//                    if (triple.isComplete()) {
+//                        if (!(index `in` triple)) {
+//                            triple = emptyTriple
+//                        }
+//                    }
+//
+//                    if (triple.first == -1) {
+//                        triple = CharacterPositionMap(index, -1, false)
+//                    }
+//                    else if (triple.second == -1) {
+//                        addedSpanList?.get(it)?.remove(triple) // change it so it ignore boolean
+//                        if (addedSpanList.get(it)?.isEmpty() == true)
+//                            addedSpanList.remove(it)
+//                        triple = CharacterPositionMap(triple.first, index, false)
+//                        addToSpanList(triple, it)
+//                        triple = emptyTriple
+//                    }
+//
+//                    if (triple.isComplete().not()) {
+//                        ongoingSpanList[it] = triple
+//                    }
+//
+//                    if (addedSpanList.isNotEmpty()) {
+//                        for (character in addedSpanList.keys) {
+//                            val list = addedSpanList.get(character) ?: listOf()
+//                            val style = characterFormatMap.get(character)
+//                            val span = getStyleSpan(style)
+//                            for (addedPair in list) {
+//                                if (addedPair.first == -1 || addedPair.second == -1)
+//                                    return
+//                                span?.let {
+//                                    if (addedPair.third.not()) {
+//                                        this@textFormatter.text.setSpan(it, addedPair.first + 1, addedPair.second, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+//                                        addedSpanList.get(character)?.remove(addedPair)
+//                                        addedSpanList.get(character)?.add(CharacterPositionMap(addedPair.first, addedPair.second, true))
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    }
                 }
             }
         }
